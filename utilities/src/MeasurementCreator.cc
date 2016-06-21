@@ -68,7 +68,7 @@ std::vector<genfit::AbsMeasurement*> MeasurementCreator::create(eMeasurementType
   genfit::AbsMeasurement* measurement;
 
   TVector3 point(1,0,0), dir(0,1,0);
-  double tracklength = 10; //random, not used
+ // double tracklength = 10; //random, not used
 //  trackModel_->getPosDir(tracklength, point, dir);
 
 
@@ -190,7 +190,7 @@ genfit::SharedPlanePtr plane(new genfit::DetPlane(point, planeNorm.Cross(z), (pl
 //      hitCov(0,0) = resolution_*resolution_;
 //      hitCov(1,1) = resolution_*resolution_;
 //      hitCov(2,2) = resolutionWire_*resolutionWire_;
-      TMatrixDSym hitCov = cov;
+      TMatrixDSym hitCov(cov);
 
       // rotation matrix
       TVector3 xp = currentWireDir.Orthogonal();
@@ -206,8 +206,6 @@ genfit::SharedPlanePtr plane(new genfit::DetPlane(point, planeNorm.Cross(z), (pl
 
       // smear
       TVectorD smearVec(3);
-resolution_ = 0;
-resolutionWire_ = 0;
       smearVec(0) = resolution_;
       smearVec(1) = resolution_;
       smearVec(2) = resolutionWire_;

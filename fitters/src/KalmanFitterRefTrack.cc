@@ -45,7 +45,6 @@ TrackPoint* KalmanFitterRefTrack::fitTrack(Track* tr, const AbsTrackRep* rep, do
   //  Exception exc("KalmanFitterRefTrack::fitTrack ==> track is not properly prepared.",__LINE__,__FILE__);
   //  throw exc;
   //}
-
   unsigned int dim = rep->getDim();
 
   chi2 = 0;
