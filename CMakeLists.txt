@@ -268,7 +268,6 @@ SET(GBL_DICTIONARY_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/GBL/include/ICalibrationParametersDerivatives.h
   ${CMAKE_CURRENT_SOURCE_DIR}/GBL/include/GblFitterInfo.h
   ${CMAKE_CURRENT_SOURCE_DIR}/GBL/include/GblFitStatus.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/GBL/include/GblData.h
 )
 ROOT_GENERATE_DICTIONARY("${CMAKE_SHARED_LIBRARY_PREFIX}${PROJECT_NAME}"
                          "${GBL_DICTIONARY_SOURCES}"
@@ -314,6 +313,7 @@ SET(UTILITIES_DICTIONARY_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/utilities/include/MeasurementCreator.h
   ${CMAKE_CURRENT_SOURCE_DIR}/utilities/include/mySpacepointDetectorHit.h
   ${CMAKE_CURRENT_SOURCE_DIR}/utilities/include/mySpacepointMeasurement.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/utilities/include/myProlateSpacepointMeasurement.h
 )
 ROOT_GENERATE_DICTIONARY("${CMAKE_SHARED_LIBRARY_PREFIX}${PROJECT_NAME}"
                          "${UTILITIES_DICTIONARY_SOURCES}"

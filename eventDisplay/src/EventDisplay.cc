@@ -1004,9 +1004,64 @@ void EventDisplay::makeLines(const StateOnPlane* prevState, const StateOnPlane* 
   TVector3 intermediate1 = oldPos + 0.3 * distA * oldDir;
   TVector3 intermediate2 = pos - 0.3 * distB * dir;
   TEveStraightLineSet* lineSet = new TEveStraightLineSet;
-  lineSet->AddLine(oldPos(0), oldPos(1), oldPos(2), intermediate1(0), intermediate1(1), intermediate1(2));
-  lineSet->AddLine(intermediate1(0), intermediate1(1), intermediate1(2), intermediate2(0), intermediate2(1), intermediate2(2));
-  lineSet->AddLine(intermediate2(0), intermediate2(1), intermediate2(2), pos(0), pos(1), pos(2));
+///////
+
+//  lineSet->AddLine(oldPos(0), oldPos(1), oldPos(2), intermediate1(0), intermediate1(1), intermediate1(2));
+//  lineSet->AddLine(intermediate1(0), intermediate1(1), intermediate1(2), intermediate2(0), intermediate2(1), intermediate2(2));
+//  lineSet->AddLine(intermediate2(0), intermediate2(1), intermediate2(2), pos(0), pos(1), pos(2));
+
+////////
+
+
+ TVector3 posEnd =  pos;
+
+  if(TMath::Abs(distA)<2.0){
+    lineSet->AddLine(oldPos(0), oldPos(1), oldPos(2), intermediate1(0), intermediate1(1), intermediate1(2));
+    lineSet->AddLine(intermediate1(0), intermediate1(1), intermediate1(2), intermediate2(0), intermediate2(1), intermediate2(2));
+    lineSet->AddLine(intermediate2(0), intermediate2(1), intermediate2(2), pos(0), pos(1), pos(2));
+
+   }else{
+
+ 
+   genfit::StateOnPlane state1(* prevState );
+
+   int intTrack = 10000; //  30;
+   for (int i=0; i<intTrack; ++i) {
+
+ TVector3 intermediate11 = oldPos + 1.0 * oldDir;
+
+       double  extrapLenW =  rep->extrapolateToPoint(state1,intermediate11 , false);
+     
+      rep->getPosDir(state1, pos, dir);
+
+      TVector3 difftest =  pos-posEnd;
+
+      //   std::cout<<" i = " << i << "  difftest.Mag(): " <<difftest.Mag()  <<std::endl;
+      if(difftest.Mag()<1.1){
+      i=intTrack-1;
+      }
+
+       if(i==intTrack-1) rep->getPosDir(*state, pos, dir);
+
+       lineSet->AddLine(oldPos(0), oldPos(1), oldPos(2), pos(0), pos(1), pos(2));
+
+       TVector3 diff =  pos-oldPos;
+       //   std::cout<<" i = " << i << "diff.Mag(): " <<diff.Mag()  <<std::endl;
+
+       oldPos= pos;
+       oldDir =dir;
+
+
+
+
+     }
+  
+
+  }
+ 
+//////////////////////////
+
+
   lineSet->SetLineColor(color);
   lineSet->SetLineStyle(style);
   lineSet->SetLineWidth(lineWidth);

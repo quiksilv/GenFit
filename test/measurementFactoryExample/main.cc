@@ -29,15 +29,38 @@
 #include <TVector3.h>
 #include <vector>
 
+#include <TFile.h>
+#include <TTree.h>
 #include "TDatabasePDG.h"
 #include <TMath.h>
 
 
-
-
-int main() {
+//require one argument which is the number of measurements
+int main(int argc, char* argv[]) {
 
   gRandom->SetSeed(14);
+
+  TFile *ftr3 = new TFile("analysis.root");
+  TTree* cdc = (TTree*)ftr3->Get("cdc");
+  Float_t fX;
+  Float_t fY;
+  Float_t fZ;
+  Float_t fPhi;
+  Float_t fTheta;
+  Float_t fMag;
+  cdc->SetBranchAddress("x", &fX);
+  cdc->SetBranchAddress("y", &fY);
+  cdc->SetBranchAddress("z", &fZ);
+  cdc->SetBranchAddress("phi", &fPhi);
+  cdc->SetBranchAddress("theta", &fTheta);
+  cdc->SetBranchAddress("mag", &fMag);
+
+  double resolution = 0.02;
+  const double momSmear = 3. /180.*TMath::Pi();     // rad
+  const double momMagSmear = 0.1;   // relative
+  // smeared start values (would come from the pattern recognition)
+  const bool smearPosMom = true;   // init the Reps with smeared pos and mom
+  const double posSmear = 0.1;     // cm
 
   // init MeasurementCreator
   genfit::MeasurementCreator measurementCreator;
@@ -45,8 +68,9 @@ int main() {
 
   // init geometry and mag. field
   new TGeoManager("Geometry", "Geane geometry");
-  TGeoManager::Import("genfitGeom.root");
-  genfit::FieldManager::getInstance()->init(new genfit::ConstField(0.,0., 15.)); // 15 kGauss
+//  TGeoManager::Import("genfitGeom.root");
+  TGeoManager::Import("analysis.root");
+  genfit::FieldManager::getInstance()->init(new genfit::ConstField(0.,0., 10.)); // 15 kGauss
   genfit::MaterialEffects::getInstance()->init(new genfit::TGeoMaterialInterface());
 
 
@@ -63,12 +87,13 @@ int main() {
   // init the factory
   int myDetId(1);
   genfit::MeasurementFactory<genfit::AbsMeasurement> factory;
+  //genfit::MeasurementProducer<genfit::mySpacepointDetectorHit, genfit::mySpacepointMeasurement> myProducer(&myDetectorHitArray);
   genfit::MeasurementProducer<genfit::mySpacepointDetectorHit, genfit::mySpacepointMeasurement> myProducer(&myDetectorHitArray);
   factory.addProducer(myDetId, &myProducer);
 
 
   // main loop
-  for (unsigned int iEvent=0; iEvent<100; ++iEvent){
+  for (unsigned int iEvent=0; iEvent<1; ++iEvent){
 
     myDetectorHitArray.Clear();
 
@@ -78,32 +103,33 @@ int main() {
     // true start values
     TVector3 pos(0, 0, 0);
     TVector3 mom(1.,0,0);
-    mom.SetPhi(gRandom->Uniform(0.,2*TMath::Pi()));
-    mom.SetTheta(gRandom->Uniform(0.4*TMath::Pi(),0.6*TMath::Pi()));
-    mom.SetMag(gRandom->Uniform(0.2, 1.));
-
+    cdc->GetEntry(0);
+    pos.SetX(gRandom->Gaus(fX/10, 0.3));
+    pos.SetY(gRandom->Gaus(fY/10, resolution));
+    pos.SetZ(gRandom->Gaus(fZ/10, resolution));
+    mom.SetPhi(gRandom->Gaus(fPhi, momSmear));
+    mom.SetTheta(gRandom->Gaus(fTheta, momSmear));
+    mom.SetMag(gRandom->Gaus(fMag, momMagSmear*mom.Mag() ) ); //relative error = sigma/momentum
 
     // helix track model
-    const int pdg = 13;               // particle pdg code
-    const double charge = TDatabasePDG::Instance()->GetParticle(pdg)->Charge()/(3.);
-    genfit::HelixTrackModel* helix = new genfit::HelixTrackModel(pos, mom, charge);
-    measurementCreator.setTrackModel(helix);
+    const int pdg = 11;               // particle pdg code
 
-
-    unsigned int nMeasurements = gRandom->Uniform(5, 15);
+//    unsigned int nMeasurements = gRandom->Uniform(5, 15);
+    unsigned int nMeasurements = atoi(argv[1]);
 
     // covariance
-    double resolution = 0.01;
+//    double resolution = 0.02;
     TMatrixDSym cov(3);
     for (int i = 0; i < 3; ++i)
       cov(i,i) = resolution*resolution;
 
+    std::vector<genfit::eMeasurementType> measurementTypes;
     for (unsigned int i=0; i<nMeasurements; ++i) {
-      // "simulate" the detector
-      TVector3 currentPos = helix->getPos(i*2.);
-      currentPos.SetX(gRandom->Gaus(currentPos.X(), resolution));
-      currentPos.SetY(gRandom->Gaus(currentPos.Y(), resolution));
-      currentPos.SetZ(gRandom->Gaus(currentPos.Z(), resolution));
+      cdc->GetEntry(i);
+      TVector3 currentPos;
+      currentPos.SetX(gRandom->Gaus(fX/10, 0.3));
+      currentPos.SetY(gRandom->Gaus(fY/10, resolution));
+      currentPos.SetZ(gRandom->Gaus(fZ/10, resolution));
 
       // Fill the TClonesArray and the TrackCand
       // In a real experiment, you detector code would deliver mySpacepointDetectorHits and fill the TClonesArray.
@@ -113,11 +139,6 @@ int main() {
     }
 
 
-    // smeared start values (would come from the pattern recognition)
-    const bool smearPosMom = true;   // init the Reps with smeared pos and mom
-    const double posSmear = 0.1;     // cm
-    const double momSmear = 3. /180.*TMath::Pi();     // rad
-    const double momMagSmear = 0.1;   // relative
 
     TVector3 posM(pos);
     TVector3 momM(mom);

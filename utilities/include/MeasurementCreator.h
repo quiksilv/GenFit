@@ -82,6 +82,7 @@ class MeasurementCreator : public TObject {
   void setDebug(bool debug) {debug_ = debug;}
 
 
+  std::vector<genfit::AbsMeasurement*> create(eMeasurementType, TVector3 pos, TMatrixDSym cov);
   std::vector<genfit::AbsMeasurement*> create(eMeasurementType, double tracklength, bool& outlier, int& lr);
   std::vector<genfit::AbsMeasurement*> create(eMeasurementType type, double tracklength) {
     bool dummy1;

@@ -24,6 +24,7 @@
 #include "Exception.h"
 #include "RKTrackRep.h"
 
+#include "RectangularFinitePlane.h"
 
 namespace genfit {
 
@@ -63,7 +64,12 @@ SharedPlanePtr ProlateSpacepointMeasurement::constructPlane(const StateOnPlane& 
   // construct orthogonal vector
   TVector3 U = largestErrorDirection_.Cross(dirInPoca);
 
-  return SharedPlanePtr(new DetPlane(wire1, U, largestErrorDirection_));
+ double umin = -10.1; //10.1 20./60 ?
+ double umax = 10.1;
+ double vmin = -10.1;
+ double vmax =  10.1;
+//  return SharedPlanePtr(new DetPlane(wire1, U, largestErrorDirection_));
+  return SharedPlanePtr(new DetPlane(wire1, U, largestErrorDirection_,  new genfit::RectangularFinitePlane(umin,umax,vmin,vmax)  ));
 }
 
 

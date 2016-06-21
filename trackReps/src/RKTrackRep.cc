@@ -1866,7 +1866,8 @@ bool RKTrackRep::RKutta(const M1x4& SU,
 
   // limits, check-values, etc. Can be tuned!
   static const double Wmax           ( 3000. );           // max. way allowed [cm]
-  static const double AngleMax       ( 6.3 );           // max. total angle change of momentum. Prevents extrapolating a curler round and round if no active plane is found.
+//  static const double AngleMax       ( 6.3 );           // max. total angle change of momentum. Prevents extrapolating a curler round and round if no active plane is found.
+  static const double AngleMax       ( 9999999998.0 );           // max. total angle change of momentum. Prevents extrapolating a curler round and round if no active plane is found.
   static const double Pmin           ( 4.E-3 );           // minimum momentum for propagation [GeV]
   static const unsigned int maxNumIt ( 1000 );    // maximum number of iterations in main loop
   // Aux parameters

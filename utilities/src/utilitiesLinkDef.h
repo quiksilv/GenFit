@@ -34,6 +34,7 @@
 #pragma link C++ class genfit::MeasurementCreator+;
 #pragma link C++ class genfit::mySpacepointDetectorHit+;
 #pragma link C++ class genfit::mySpacepointMeasurement+;
+#pragma link C++ class genfit::myProlateSpacepointMeasurement+;
 
 
 #endif
