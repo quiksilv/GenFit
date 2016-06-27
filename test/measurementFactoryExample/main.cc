@@ -2,6 +2,8 @@
 #include <Exception.h>
 #include <FieldManager.h>
 #include <KalmanFitterRefTrack.h>
+#include <KalmanFittedStateOnPlane.h>
+#include <KalmanFitterInfo.h>
 #include <StateOnPlane.h>
 #include <Track.h>
 #include <TrackCand.h>
@@ -31,8 +33,12 @@
 #include <TVector3.h>
 #include <vector>
 
+#include <TROOT.h>
+#include <TStyle.h>
 #include <TFile.h>
 #include <TTree.h>
+#include <TCanvas.h>
+#include <TH1D.h>
 #include "TDatabasePDG.h"
 #include <TMath.h>
 
@@ -40,7 +46,16 @@
 //require one argument, the number of measurements
 int main(int argc, char** argv) {
 
-  gRandom->SetSeed(15);
+
+//  gROOT->SetStyle("Plain");
+//  gStyle->SetPalette(1);
+//  gStyle->SetOptFit(1111);
+  const unsigned int nMeasurements = 150;
+  double resolution = 0.02;
+  const double momentum = 0.1045;
+  //TH1D *hmomRes = new TH1D("hmomRes","mom res",500,-20*resolution*momentum/nMeasurements,20*resolution*momentum/nMeasurements);
+  TH1D *hmomRes = new TH1D("hmomRes","mom res",500,-1*resolution,1*resolution);
+
 
   TFile *ftr3 = new TFile("analysis.root");
   TTree* cdc = (TTree*)ftr3->Get("cdc");
@@ -57,7 +72,6 @@ int main(int argc, char** argv) {
   cdc->SetBranchAddress("theta", &fTheta);
   cdc->SetBranchAddress("mag", &fMag);
 
-  double resolution = 0.02;
   double resolutionWire = 0.3;
   const double momSmear = 3. /180.*TMath::Pi();     // rad
   const double momMagSmear = 0.1;   // relative
@@ -67,7 +81,7 @@ int main(int argc, char** argv) {
 
   //total number of measurements, or rather the ending index
   //unsigned int nMeasurements = atoi(argv[1]);
-  unsigned int nMeasurements = 150;
+  //unsigned int nMeasurements = 150;
   // init MeasurementCreator
   genfit::MeasurementCreator measurementCreator;
 
@@ -101,6 +115,7 @@ int main(int argc, char** argv) {
 
   // main loop
   for (unsigned int iEvent=0; iEvent<1; ++iEvent){
+    gRandom->SetSeed(15);
 
     myDetectorHitArray.Clear();
 
@@ -120,7 +135,6 @@ int main(int argc, char** argv) {
     TVector3 posInit = pos - 0.5*myDir;
     const int pdg = 11;               // particle pdg code
 
-
     // covariance
     TMatrixDSym cov(3);
     for (int i = 0; i < 3; ++i)
@@ -137,6 +151,12 @@ int main(int argc, char** argv) {
     // trackrep
     genfit::AbsTrackRep* rep = new genfit::RKTrackRep(pdg);
 //    rep->setPropDir(1);
+
+genfit::MeasuredStateOnPlane stateRef(rep);
+rep->setPosMomCov(stateRef, pos, mom, covSeed);
+// remember original initial state
+const genfit::StateOnPlane stateRefOrig(stateRef);
+
     // smeared start state
     genfit::MeasuredStateOnPlane stateSmeared(rep);
     rep->setPosMomCov(stateSmeared, pos, mom, covSeed);
@@ -196,19 +216,51 @@ int main(int argc, char** argv) {
     if (iEvent < 1000) {
       // add track to event display
 //      display->addEvent(&fitTrack);
-
         std::vector<genfit::Track*> event;
         event.push_back(&fitTrack);
         display->addEvent(event);
-//        event.push_back(&secondTrack);
-//        display->addEvent(event);
     }
 
+      genfit::TrackPoint* tp = fitTrack.getPointWithMeasurementAndFitterInfo(0, rep);
+      if (tp == NULL) {
+        std::cout << "Track has no TrackPoint with fitterInfo! \n";
+        continue;
+      }
+      genfit::KalmanFittedStateOnPlane kfsop(*(static_cast<genfit::KalmanFitterInfo*>(tp->getFitterInfo(rep))->getBackwardUpdate()));
+      if (true) {
+        std::cout << "state before extrapolating back to reference plane \n";
+        kfsop.Print();
+      }
+
+      // extrapolate back to reference plane.
+      try{
+        rep->extrapolateToPlane(kfsop, stateRefOrig.getPlane());;
+      }
+      catch(genfit::Exception& e){
+        std::cerr<<"Exception, next track"<<std::endl;
+        std::cerr << e.what();
+        continue;
+      }
+      // calculate pulls
+      const TVectorD& referenceState = stateRefOrig.getState();
+
+      const TVectorD& _state = kfsop.getState();
+      const TMatrixDSym& _cov = kfsop.getCov();
+
+      double _pval = fitter->getPVal(&fitTrack, rep);
+      const double charge = TDatabasePDG::Instance()->GetParticle(pdg)->Charge()/(3.);
+      Double_t entry = charge/_state[0] - momentum;
+      hmomRes->Fill(entry);
 
   }// end loop over events
 
   delete fitter;
 
+  TCanvas* c1 = new TCanvas();
+  hmomRes->Fit("gaus", "SMEQ");
+  hmomRes->Draw();
+  c1->Update();
+  c1->Write();
   // open event display
   display->open();
 
