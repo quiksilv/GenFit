@@ -992,8 +992,10 @@ void EventDisplay::makeLines(const StateOnPlane* prevState, const StateOnPlane* 
   }
 
   TVector3 pos, dir, oldPos, oldDir;
+  TVector3 posT, momT;
   rep->getPosDir(*state, pos, dir);
   rep->getPosDir(*prevState, oldPos, oldDir);
+  rep->getPosMom(*state, posT, momT);
 
   double distA = (pos-oldPos).Mag();
   double distB = distA;
@@ -1025,7 +1027,7 @@ void EventDisplay::makeLines(const StateOnPlane* prevState, const StateOnPlane* 
  
    genfit::StateOnPlane state1(* prevState );
 
-   int intTrack = 10000; //  30;
+   int intTrack = 150; //  30; originally 10000
    for (int i=0; i<intTrack; ++i) {
 
  TVector3 intermediate11 = oldPos + 1.0 * oldDir;
@@ -1037,7 +1039,8 @@ void EventDisplay::makeLines(const StateOnPlane* prevState, const StateOnPlane* 
       TVector3 difftest =  pos-posEnd;
 
       //   std::cout<<" i = " << i << "  difftest.Mag(): " <<difftest.Mag()  <<std::endl;
-      if(difftest.Mag()<1.1){
+      //if(difftest.Mag()<1.1){
+      if(difftest.Mag()<1.5){
       i=intTrack-1;
       }
 

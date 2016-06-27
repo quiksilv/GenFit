@@ -52,7 +52,7 @@ class myProlateSpacepointMeasurement : public ProlateSpacepointMeasurement {
     hitId_ = hit->getHitId();
 
 
-    //largestErrorDirection_ = TVector3(1,0,0);
+    largestErrorDirection_ = TVector3(1,0,0);
     ////largestErrorDirection_ = TVector3(0., 0. ,1.);
 
     this -> initG();

@@ -39,8 +39,8 @@ namespace genfit {
 
 MeasurementCreator::MeasurementCreator() :
     trackModel_(NULL),
-    resolution_(0.01),
-    resolutionWire_(0.1),
+    resolution_(0.02),
+    resolutionWire_(0.3),
     outlierProb_(0),
     outlierRange_(2),
     thetaDetPlane_(90),
@@ -190,8 +190,10 @@ genfit::SharedPlanePtr plane(new genfit::DetPlane(point, planeNorm.Cross(z), (pl
 //      hitCov(0,0) = resolution_*resolution_;
 //      hitCov(1,1) = resolution_*resolution_;
 //      hitCov(2,2) = resolutionWire_*resolutionWire_;
-      TMatrixDSym hitCov(cov);
-
+      TMatrixDSym hitCov(3);
+hitCov(0,0) = cov(0,0);
+hitCov(1,1) = cov(1,1);
+hitCov(2,2) = cov(2,2);
       // rotation matrix
       TVector3 xp = currentWireDir.Orthogonal();
       xp.SetMag(1);
@@ -203,13 +205,11 @@ genfit::SharedPlanePtr plane(new genfit::DetPlane(point, planeNorm.Cross(z), (pl
       rot(0,0) = xp.X();  rot(0,1) = yp.X();  rot(0,2) = currentWireDir.X();
       rot(1,0) = xp.Y();  rot(1,1) = yp.Y();  rot(1,2) = currentWireDir.Y();
       rot(2,0) = xp.Z();  rot(2,1) = yp.Z();  rot(2,2) = currentWireDir.Z();
-
       // smear
       TVectorD smearVec(3);
       smearVec(0) = resolution_;
       smearVec(1) = resolution_;
       smearVec(2) = resolutionWire_;
-      smearVec *= rot;
 //      if (!outlier) {
 //        hitCoords(0) += gRandom->Gaus(0, smearVec(0));
 //        hitCoords(1) += gRandom->Gaus(0, smearVec(1));
@@ -218,7 +218,7 @@ genfit::SharedPlanePtr plane(new genfit::DetPlane(point, planeNorm.Cross(z), (pl
 
 
       // rotate cov
-      hitCov.Similarity(rot);
+//      hitCov.Similarity(rot);
 
       measurement = new genfit::ProlateSpacepointMeasurement(hitCoords, hitCov, int(type), measurementCounter_, nullptr);
       static_cast<genfit::ProlateSpacepointMeasurement*>(measurement)->setLargestErrorDirection(currentWireDir);

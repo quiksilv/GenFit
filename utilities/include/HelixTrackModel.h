@@ -52,22 +52,6 @@ class HelixTrackModel : public TObject {
     dir.SetMag(1);
   }
 
-  // wds modif
-  double getSgn(){return sgn_; }
-  double getMom(){return mom_; }
-  double getR(){return R_; }
-  TVector3 getCenter(){return center_;}
-  double getAlpha0(){return alpha0_;}
-  double getTheta(){return theta_; }
- void getPosMomNomateff(double tracklength, TVector3& pos, TVector3& mom) const;
-
-  // std::vector<double>  GetGenTrack(TVector3 pos , TVector3 center, TVector3 mom);
- std::vector<double>  GetGenTrack();
-
- double  GetHelPar(int i , double A, double B, double C, double phi, double Xc, double Yc, double tlam );
-
-
-
 
  private:
 

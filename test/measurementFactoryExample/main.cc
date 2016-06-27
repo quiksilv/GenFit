@@ -13,6 +13,8 @@
 #include "mySpacepointDetectorHit.h"
 #include "myProlateSpacepointMeasurement.h"
 
+#include "FullMeasurement.h"
+
 #include <MaterialEffects.h>
 #include <RKTrackRep.h>
 #include <TGeoMaterialInterface.h>
@@ -35,10 +37,10 @@
 #include <TMath.h>
 
 
-//require one argument which is the number of measurements
+//require one argument, the number of measurements
 int main(int argc, char** argv) {
 
-  gRandom->SetSeed(14);
+  gRandom->SetSeed(15);
 
   TFile *ftr3 = new TFile("analysis.root");
   TTree* cdc = (TTree*)ftr3->Get("cdc");
@@ -56,12 +58,16 @@ int main(int argc, char** argv) {
   cdc->SetBranchAddress("mag", &fMag);
 
   double resolution = 0.02;
+  double resolutionWire = 0.3;
   const double momSmear = 3. /180.*TMath::Pi();     // rad
   const double momMagSmear = 0.1;   // relative
   // smeared start values (would come from the pattern recognition)
-  const bool smearPosMom = true;   // init the Reps with smeared pos and mom
-  const double posSmear = 0.1;     // cm
+  //const bool smearPosMom = true;   // init the Reps with smeared pos and mom
+  //const double posSmear = 0.1;     // cm
 
+  //total number of measurements, or rather the ending index
+  //unsigned int nMeasurements = atoi(argv[1]);
+  unsigned int nMeasurements = 150;
   // init MeasurementCreator
   genfit::MeasurementCreator measurementCreator;
 
@@ -70,65 +76,57 @@ int main(int argc, char** argv) {
   new TGeoManager("Geometry", "Geane geometry");
 //  TGeoManager::Import("genfitGeom.root");
   TGeoManager::Import("analysis.root");
-  genfit::FieldManager::getInstance()->init(new genfit::ConstField(0.,0., 10.)); // 15 kGauss
+  genfit::FieldManager::getInstance()->init(new genfit::ConstField(10.,0., 0.)); // 15 kGauss
   genfit::MaterialEffects::getInstance()->init(new genfit::TGeoMaterialInterface());
   genfit::MaterialEffects::getInstance()->setEnergyLossBrems(false);
 //  genfit::MaterialEffects::getInstance()->setNoEffects();
 
-
   // init event display
   genfit::EventDisplay* display = genfit::EventDisplay::getInstance();
 
-
   // init fitter
-  genfit::AbsKalmanFitter* fitter = new genfit::KalmanFitterRefTrack();
+  genfit::AbsKalmanFitter* fitter = new genfit::KalmanFitterRefTrack(10);
+  fitter->setMinIterations(3);
+//  fitter->setRelChi2Change(0.2);
+//  fitter->setDeltaChi2Ref(1);
   fitter->setDebugLvl(1);
-
 
   TClonesArray myDetectorHitArray("genfit::mySpacepointDetectorHit");
 
   // init the factory
   int myDetId(1);
   genfit::MeasurementFactory<genfit::AbsMeasurement> factory;
-  //genfit::MeasurementProducer<genfit::mySpacepointDetectorHit, genfit::mySpacepointMeasurement> myProducer(&myDetectorHitArray);
   genfit::MeasurementProducer<genfit::mySpacepointDetectorHit, genfit::myProlateSpacepointMeasurement> myProducer(&myDetectorHitArray);
   factory.addProducer(myDetId, &myProducer);
-
-
 
   // main loop
   for (unsigned int iEvent=0; iEvent<1; ++iEvent){
 
     myDetectorHitArray.Clear();
 
-    //TrackCand
-    genfit::TrackCand myCand;
-
     // true start values
     TVector3 pos(0, 0, 0);
-    TVector3 mom(1.,0,0);
+    TVector3 mom(1.,0.,0.);
     cdc->GetEntry(0);
-    pos.SetX(gRandom->Gaus(fX/10, 0.3));
+    pos.SetX(gRandom->Gaus(fX/10, resolutionWire));
     pos.SetY(gRandom->Gaus(fY/10, resolution));
     pos.SetZ(gRandom->Gaus(fZ/10, resolution));
     mom.SetPhi(gRandom->Gaus(fPhi, momSmear));
     mom.SetTheta(gRandom->Gaus(fTheta, momSmear));
     mom.SetMag(gRandom->Gaus(fMag, momMagSmear*mom.Mag() ) ); //relative error = sigma/momentum
 
-    // helix track model
+    TVector3 myDir(mom);
+    myDir.SetMag(1);
+    TVector3 posInit = pos - 0.5*myDir;
     const int pdg = 11;               // particle pdg code
 
-//    unsigned int nMeasurements = gRandom->Uniform(5, 15);
-    unsigned int nMeasurements = atoi(argv[1]);
 
     // covariance
-//    double resolution = 0.02;
     TMatrixDSym cov(3);
-//    for (int i = 0; i < 3; ++i)
-//      cov(i,i) = resolution*resolution;
-      cov(0,0) = resolution*resolution;
+    for (int i = 0; i < 3; ++i)
+      cov(0,0) = resolutionWire*resolutionWire;
       cov(1,1) = resolution*resolution;
-      cov(2,2) = 0.3*0.3;
+      cov(2,2) = resolution*resolution;
     // initial guess for cov
     TMatrixDSym covSeed(6);
     for (int i = 0; i < 3; ++i)
@@ -138,76 +136,72 @@ int main(int argc, char** argv) {
 
     // trackrep
     genfit::AbsTrackRep* rep = new genfit::RKTrackRep(pdg);
+//    rep->setPropDir(1);
     // smeared start state
     genfit::MeasuredStateOnPlane stateSmeared(rep);
     rep->setPosMomCov(stateSmeared, pos, mom, covSeed);
     // create track
     TVectorD seedState(6);
     TMatrixDSym seedCov(6);
-//    rep->setPropDir(1);
     rep->get6DStateCov(stateSmeared, seedState, seedCov);
     genfit::Track fitTrack(rep, seedState, seedCov);
+    genfit::Track secondTrack(rep->clone(), seedState, seedCov);
 
     std::vector<genfit::eMeasurementType> measurementTypes;
     for (unsigned int i=0; i<nMeasurements; ++i)
       measurementTypes.push_back(genfit::ProlateSpacepoint);
+      //measurementTypes.push_back(genfit::Pixel);
     for (unsigned int i=0; i<nMeasurements; ++i) {
       cdc->GetEntry(i);
       TVector3 currentPos;
-      currentPos.SetX(gRandom->Gaus(fX/10, 0.3));
+      currentPos.SetX(gRandom->Gaus(fX/10, resolutionWire));
       currentPos.SetY(gRandom->Gaus(fY/10, resolution));
       currentPos.SetZ(gRandom->Gaus(fZ/10, resolution));
 
-      // Fill the TClonesArray and the TrackCand
-      // In a real experiment, you detector code would deliver mySpacepointDetectorHits and fill the TClonesArray.
-      // The patternRecognition would create the TrackCand.
-      new(myDetectorHitArray[i]) genfit::mySpacepointDetectorHit(currentPos, cov);
-      myCand.addHit(myDetId, i);
-
       std::vector<genfit::AbsMeasurement*> measurements = measurementCreator.create(measurementTypes[i], currentPos, cov);
-      fitTrack.insertPoint(new genfit::TrackPoint(measurements, &fitTrack));
+      genfit::TrackPoint* trackPoint = new genfit::TrackPoint(measurements, &fitTrack);
+      if(i<87) {
+        fitTrack.insertPoint(trackPoint);
+      } else {
+        secondTrack.insertPoint(trackPoint);
+      }
     }
-
-
-
-//    TVector3 posM(pos);
-//    TVector3 momM(mom);
-//    if (smearPosMom) {
-//      posM.SetX(gRandom->Gaus(posM.X(),posSmear));
-//      posM.SetY(gRandom->Gaus(posM.Y(),posSmear));
-//      posM.SetZ(gRandom->Gaus(posM.Z(),posSmear));
-//
-//      momM.SetPhi(gRandom->Gaus(mom.Phi(),momSmear));
-//      momM.SetTheta(gRandom->Gaus(mom.Theta(),momSmear));
-//      momM.SetMag(gRandom->Gaus(mom.Mag(), momMagSmear*mom.Mag()));
-//    }
-//
-//
-//
-//    // set start values and pdg to cand
-//    myCand.setPosMomSeedAndPdgCode(posM, momM, pdg);
-//    myCand.setCovSeed(covSeed);
-
-
 
     //check
     assert(fitTrack.checkConsistency());
+    assert(secondTrack.checkConsistency());
 
     // do the fit
     try{
       fitter->processTrack(&fitTrack);
+      //fitter->processTrack(&secondTrack, false);
+      fitter->processTrack(&secondTrack);
     }
     catch(genfit::Exception& e){
       std::cerr << e.what();
       std::cerr << "Exception, next track" << std::endl;
       continue;
     }
+    bool fullMeasurement = false;
+    if (fullMeasurement) {
+      genfit::FullMeasurement* fullM = new genfit::FullMeasurement(secondTrack.getFittedState());
+      fitTrack.insertPoint(new genfit::TrackPoint(fullM, &fitTrack));
+    }
+    else
+      fitTrack.mergeTrack(&secondTrack);
 
+    rep->setPropDir(1);
 
-
+    fitter->processTrack(&fitTrack);
     if (iEvent < 1000) {
       // add track to event display
-      display->addEvent(&fitTrack);
+//      display->addEvent(&fitTrack);
+
+        std::vector<genfit::Track*> event;
+        event.push_back(&fitTrack);
+        display->addEvent(event);
+//        event.push_back(&secondTrack);
+//        display->addEvent(event);
     }
 
 
